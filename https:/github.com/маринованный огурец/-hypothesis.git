@@ -1,0 +1,163 @@
+import pandas as pd
+from sklearn.model_selection import train_test_split
+from sklearn.linear_model import LinearRegression
+from sklearn.metrics import mean_squared_error
+import numpy as np
+from IPython.core.interactiveshell import InteractiveShell
+InteractiveShell.ast_node_interactivity = "all"
+first_region.head()
+second_region.head()
+third_region.head()
+first_region.head()
+second_region.head()
+third_region.head()
+print('Количество дубликатов по id в первом регионе:', int(pd.DataFrame(first_region['id'].value_counts()).query('id > 1').count()))
+print('Количество дубликатов по id во втором регионе:', int(pd.DataFrame(second_region['id'].value_counts()).query('id > 1').count()))
+print('Количество дубликатов по id во третьем регионе:', int(pd.DataFrame(third_region['id'].value_counts()).query('id > 1').count()))
+print('Количество дубликатов по 1 признаку в первом регионе:', int(pd.DataFrame(first_region['f0'].value_counts()).query('f0 > 1').count()))
+print('Количество дубликатов по 1 признаку во втором регионе:', int(pd.DataFrame(second_region['f0'].value_counts()).query('f0 > 1').count()))
+print('Количество дубликатов по 1 признаку во третьем регионе:', int(pd.DataFrame(third_region['f0'].value_counts()).query('f0 > 1').count()))
+print('Количество дубликатов по 2 признаку в первом регионе:', int(pd.DataFrame(first_region['f1'].value_counts()).query('f1 > 1').count()))
+print('Количество дубликатов по 2 признаку во втором регионе:', int(pd.DataFrame(second_region['f1'].value_counts()).query('f1 > 1').count()))
+print('Количество дубликатов по 2 признаку во третьем регионе:', int(pd.DataFrame(third_region['f1'].value_counts()).query('f1 > 1').count()))
+print('Количество дубликатов по 3 признаку в первом регионе:', int(pd.DataFrame(first_region['f2'].value_counts()).query('f2 > 1').count()))
+print('Количество дубликатов по 3 признаку во втором регионе:', int(pd.DataFrame(second_region['f2'].value_counts()).query('f2 > 1').count()))
+print('Количество дубликатов по 3 признаку во третьем регионе:', int(pd.DataFrame(third_region['f2'].value_counts()).query('f2 > 1').count()))
+first_region = first_region.drop_duplicates(subset='id')
+second_region = second_region.drop_duplicates(subset='id')
+third_region = third_region.drop_duplicates(subset='id')
+del first_region['id']
+del second_region['id']
+del third_region['id']
+
+# ОБУЧЕНИЕ МОДЕЛИ
+
+#1 REGION
+first_train, first_valid = train_test_split(first_region, test_size=0.25, random_state=12345)
+
+first_target_train = first_train['product'].reset_index(drop=True)
+first_features_train = first_train.copy(deep=True).reset_index(drop=True)
+del first_features_train['product']
+
+first_target_valid = first_valid['product'].reset_index(drop=True).reset_index(drop=True)
+first_features_valid = first_valid.copy(deep=True).reset_index(drop=True)
+del first_features_valid['product']
+first_model = LinearRegression().fit(first_features_train, first_target_train)
+first_model_predict = pd.Series(first_model.predict(first_features_valid))
+print('rmse =', mean_squared_error(first_model_predict, first_target_valid) ** 0.5)
+print('Средний запас предсказанного сырья =',first_model_predict.mean())
+
+#2 REGION
+
+
+second_train, second_valid = train_test_split(second_region, test_size=0.25, random_state=12345)
+
+second_target_train = second_train['product'].reset_index(drop=True)
+second_features_train = second_train.copy(deep=True).reset_index(drop=True)
+del second_features_train['product']
+
+second_target_valid = second_valid['product'].reset_index(drop=True)
+second_features_valid = second_valid.copy(deep=True).reset_index(drop=True)
+del second_features_valid['product']
+second_model = LinearRegression().fit(second_features_train, second_target_train)
+second_model_predict = pd.Series(second_model.predict(second_features_valid))
+print('rmse =', mean_squared_error(second_model_predict, second_target_valid) ** 0.5)
+print('Средний запас предсказанного сырья =',second_model_predict.mean())
+
+#3 REGION
+
+third_train, third_valid = train_test_split(third_region, test_size=0.25, random_state=12345)
+
+third_target_train = third_train['product'].reset_index(drop=True)
+third_features_train = third_train.copy(deep=True).reset_index(drop=True)
+del third_features_train['product']
+
+third_target_valid = third_valid['product']
+third_features_valid = third_valid.copy(deep=True)
+del third_features_valid['product']
+third_model = LinearRegression().fit(third_features_train, third_target_train)
+third_model_predict = pd.Series(third_model.predict(third_features_valid))
+print('rmse =', mean_squared_error(third_model_predict, third_target_valid) ** 0.5)
+print('Средний запас предсказанного сырья =',third_model_predict.mean())
+
+#подготовка к рассчету прибыли
+
+BUDGET = 10 ** 10
+REVENUE_PER_BARREL = 450 * 10**3
+WELLS_NUMBER = 200
+ANALYZED_WELLS = 500
+DIFFERENT_SAMPLES_NUMBER = 1000
+print('Достаточный объём сырья для безубыточной разработки одной новой скважины из предполагаемых 200сот =', BUDGET / WELLS_NUMBER / REVENUE_PER_BARREL)
+
+#расчет прибыли
+
+def revenue(target, predict, count):
+    best = pd.Series(predict).sort_values(ascending=False)
+    selected = target[best.index][:count]
+    return (REVENUE_PER_BARREL * selected.sum()) - BUDGET
+
+print('---Первый регион---')
+print('Прибыль =', revenue(first_target_valid, first_model_predict, len(first_model_predict)))
+print()
+print('---Второй регион---')
+print('Прибыль =', revenue(second_target_valid, second_model_predict, len(second_model_predict)))
+print()
+print('---Третий регион---')
+print('Прибыль =', revenue(third_target_valid, third_model_predict, len(third_model_predict)))
+
+#РАСЧЕТ РИСКОВ
+
+#1 REGION
+
+
+state = np.random.RandomState(12345)
+
+values = []
+for i in range(DIFFERENT_SAMPLES_NUMBER):
+    target_subsample = first_target_valid.sample(n=ANALYZED_WELLS, replace=True, random_state=state)
+    probs_subsample = first_model_predict[target_subsample.index]
+    rev = revenue(target_subsample, probs_subsample, WELLS_NUMBER)
+    values.append(rev)
+
+values = pd.Series(values)
+confidence_interval = (values.quantile(0.025), values.quantile(0.975))
+risk_of_loss = len(values[values < 0]) * 100 / len(values)
+mean = values.mean()
+print("Средняя выручка:", mean)
+print("95%-ый доверительный интервал:", confidence_interval)
+print('Риск убытка =', risk_of_loss, "%")
+
+#2 REGION
+
+values = []
+for i in range(DIFFERENT_SAMPLES_NUMBER):
+    target_subsample = second_target_valid.sample(n=ANALYZED_WELLS, replace=True, random_state=state)
+    probs_subsample = second_model_predict[target_subsample.index]
+    rev = revenue(target_subsample, probs_subsample, WELLS_NUMBER)
+    values.append(rev)
+
+values = pd.Series(values)
+confidence_interval = (values.quantile(0.025), values.quantile(0.975))
+risk_of_loss = len(values[values < 0]) * 100 / len(values)
+mean = values.mean()
+print("Средняя выручка:", mean)
+print("95%-ый доверительный интервал:", confidence_interval)
+print('Риск убытка =', risk_of_loss, '%')
+
+#3 REGION
+
+values = []
+for i in range(DIFFERENT_SAMPLES_NUMBER):
+    target_subsample = third_target_valid.sample(n=ANALYZED_WELLS, replace=True, random_state=state)
+    probs_subsample = third_model_predict[target_subsample.index]
+    rev = revenue(target_subsample, probs_subsample, WELLS_NUMBER)
+    values.append(rev)
+
+values = pd.Series(values)
+confidence_interval = (values.quantile(0.025), values.quantile(0.975))
+risk_of_loss = len(values[values < 0]) * 100 / len(values)
+mean = values.mean()
+print("Средняя выручка:", mean)
+print("95%-ый доверительный интервал:", confidence_interval)
+print('Риск убытка =', risk_of_loss, '%')
+
